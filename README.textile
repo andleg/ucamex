@@ -1,0 +1,13 @@
+h1. Univesity of Cambridge Extension bundle
+
+h2. Rational
+
+ This bundle contains extensions of Sakai OAE server used by the University of Cambridge.
+
+
+h1. Contributions, Patches, and License.
+
+The code in this code base is (c) University of Cambridge and licensed to the Sakai Foundation under a Apache 2 Software License. Before making 
+a contribution by means of a patch or otherwise please ensure that you read and understand the terms under which a patch or contribution
+will be accepted, outlined in the NOTICES file. All patches and contributions are made under those terms with no exceptions.
+

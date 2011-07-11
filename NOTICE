@@ -1,0 +1,18 @@
+University of Cambridge Extension Bundle
+Copyright 2011 University of Cambridge 
+
+The Copyright of patches appearing in the code base prior to the appearance of this NOTICE and CONTRIBUTING file
+were accepted under the assumption that re-licensing of those patches, under the Apache 2 Software License to the
+Sakai Foundation was acceptable to the contributors, and that there was nothing in the patches that would prevent
+that from happening, infringe on any patents or IPR. If you are concerned about this, you can find authors using 
+the version control system.
+
+-----------------------------------------------------------
+
+This product includes software from the The Apache Software Foundation (http://www.apache.org/).
+
+Patches and contributions made to this code base are made under the terms of the Apache 2 Software License (see para 5).
+
+Binary distributions of this product contain jars developed and licensed by other third parties, identified by the 
+LICENSE and NOTICE files included within each jar under the META-INF directory.
+
