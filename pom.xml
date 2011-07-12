@@ -114,7 +114,12 @@
   
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
-      <artifactId>org.sakaiproject.nakamura.profile</artifactId>
+      <artifactId>org.sakaiproject.nakamura.profile</artifactId> <!--  may not need this  -->
+      <version>0.11-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.sakaiproject.nakamura</groupId>
+      <artifactId>org.sakaiproject.nakamura.user</artifactId>
       <version>0.11-SNAPSHOT</version>
     </dependency>
     <dependency>

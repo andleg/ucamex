@@ -15,19 +15,18 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.sling.SlingServlet;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
 import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.JSONObject;
+import org.apache.sling.commons.json.io.JSONWriter;
 import org.apache.sling.commons.osgi.OsgiUtil;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.lite.authorizable.Authorizable;
 import org.sakaiproject.nakamura.api.lite.authorizable.AuthorizableManager;
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
-import org.sakaiproject.nakamura.api.profile.ProfileService;
-import org.sakaiproject.nakamura.api.templates.TemplateService;
-import org.sakaiproject.nakamura.util.LitePersonalUtils;
+import org.sakaiproject.nakamura.util.ExtendedJSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,14 +34,14 @@ import uk.ac.cam.caret.oae.ldap.SimpleLdapConnectionManager;
 
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
-@SlingServlet(paths="/system/ucam/profile-setup", methods="POST")
-public class PopulateProfileServlet extends SlingAllMethodsServlet {
+@SlingServlet(paths="/system/ucam/lookup", methods="GET")
+public class GetLookupServlet extends SlingSafeMethodsServlet {
 
   
   /**
@@ -51,34 +50,19 @@ public class PopulateProfileServlet extends SlingAllMethodsServlet {
   private static final long serialVersionUID = -8812325731250311990L;
 
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(PopulateProfileServlet.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GetLookupServlet.class);
 
 
-  private static final String PROFILE_IMPORT_TEMPLATE_DEFAULT = "{  \"testing\": true }";
 
-  @Property(value=PROFILE_IMPORT_TEMPLATE_DEFAULT)
-  private static final String PROFILE_IMPORT_TEMPLATE = "import-template";
 
   private static final String USER_DN_TEMPLATE_DEFAULT = "uid={0},ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk";
 
   @Property(value=USER_DN_TEMPLATE_DEFAULT)
   private static final String USER_DN_TEMPLATE = "userdn-template";
-
-
   
-  
-  @Reference
-  private ProfileService profileService;
-  
-  @Reference
-  private TemplateService templateService;
-
 
   @Reference
   private SimpleLdapConnectionManager simpleLdapConnectionManager;
-
-
-  private String importTemplate;
 
 
   private String userDNTemplate;
@@ -91,24 +75,46 @@ public class PopulateProfileServlet extends SlingAllMethodsServlet {
   
   @Modified
   public void modify(Map<String, Object> properties) {
-    importTemplate = OsgiUtil.toString(properties.get(PROFILE_IMPORT_TEMPLATE), PROFILE_IMPORT_TEMPLATE_DEFAULT);
     userDNTemplate = OsgiUtil.toString(properties.get(USER_DN_TEMPLATE), USER_DN_TEMPLATE_DEFAULT);
   }
 
 
+
+
   @Override
-  protected void doPost(SlingHttpServletRequest request, SlingHttpServletResponse response)
+  protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
       throws ServletException, IOException {
     
     try {
       Session session = StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class));
       AuthorizableManager authorizableManager = session.getAuthorizableManager();
+      
       String userId = session.getUserId();
+      if ( User.ADMIN_USER.equals(userId)) {
+        userId = request.getParameter("uid");
+      }
       
-      syncProfile(session, userId);
+      Authorizable user = authorizableManager.findAuthorizable(userId);
+      if ( user == null ) {
+        response.sendError(404,"User "+userId+" does not exist locally");
+        return;
+      }
       
+      Map<String, Object> lookupRecord = getLookupRecord(session, userId);
+      Map<String, Object> out = Maps.newHashMap();
+      if ( lookupRecord == null ) {
+        out.put("remote", false);
+      } else {
+        lookupRecord.remove("jpegPhoto");
+        out.put("remote", lookupRecord);
+      }
+      out.put("local", user.getSafeProperties());
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.setContentType("application/json");
+      response.setCharacterEncoding("UTF-8");
+      JSONWriter jsonWriter = new JSONWriter(response.getWriter());
       
-      acceptTerms(authorizableManager, userId);
+      ExtendedJSONWriter.writeValueMap(jsonWriter, out);
     } catch ( Exception e) {
       LOGGER.error(e.getMessage(),e);
       throw new ServletException(e.getMessage(),e);
@@ -119,7 +125,7 @@ public class PopulateProfileServlet extends SlingAllMethodsServlet {
 
 
 
-  private void syncProfile(Session session, String userId) throws LDAPException, JSONException, StorageClientException, AccessDeniedException {
+  private Map<String, Object> getLookupRecord(Session session, String userId) throws LDAPException, JSONException, StorageClientException, AccessDeniedException {
     LDAPConnection ldapConnection = null;
     try {
       ldapConnection = simpleLdapConnectionManager.getConnection();
@@ -139,9 +145,11 @@ public class PopulateProfileServlet extends SlingAllMethodsServlet {
           }
         }
       }
-      
-      JSONObject importJson = new JSONObject(templateService.evaluateTemplate(attributes, importTemplate));
-      profileService.update(session, LitePersonalUtils.getProfilePath(userId), importJson);
+      return attributes;
+    } catch ( Exception e ) {
+      LOGGER.warn(e.getMessage());
+      LOGGER.debug(e.getMessage(),e);
+      return null;
     } finally {
       if ( ldapConnection != null ) {
         simpleLdapConnectionManager.returnConnection(ldapConnection);
@@ -152,12 +160,6 @@ public class PopulateProfileServlet extends SlingAllMethodsServlet {
 
 
 
-  private void acceptTerms(AuthorizableManager authorizableManager, String userId) throws AccessDeniedException, StorageClientException {
-    User user = (User) authorizableManager.findAuthorizable(userId);
-    user.setProperty("hasacceptedterms", true);
-    user.setProperty("whenacceptedterms", new Date().toString());
-    authorizableManager.updateAuthorizable(user);
-  }
   
   
 

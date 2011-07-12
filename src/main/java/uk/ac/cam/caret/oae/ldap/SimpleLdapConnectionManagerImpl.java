@@ -61,10 +61,10 @@ public class SimpleLdapConnectionManagerImpl implements SimpleLdapConnectionMana
   @Property(intValue=30)
   private static final String PROP_OPERATION_TIMEOUT = "operation.timeout";
 
-  @Property(intValue=398)
+  @Property(intValue=389)
   private static final String PROP_PORT = "port";
 
-  @Property()
+  @Property(value="ldap.lookup.cam.ac.uk")
   private static final String PROP_HOST = "host";
 
   @Property(boolValue=true)
