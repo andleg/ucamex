@@ -278,6 +278,28 @@
   </distributionManagement>
   <repositories>
     <repository>
+      <id>maven repo</id>
+      <name>maven repo</name>
+      <url>http://repo1.maven.org/maven2/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </repository>
+    <repository>
+      <id>apache-snapshots</id>
+      <name>Apache Snapshot Repository</name>
+      <url>http://repository.apache.org/snapshots/</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+    </repository>
+    <repository>
       <id>sakai-releases</id>
       <name>Sakai Releases</name>
       <releases>
@@ -288,6 +310,17 @@
       </snapshots>
       <url>http://source.sakaiproject.org/maven2/</url>
     </repository>
+    <repository>
+      <id>sakai-snapshots</id>
+      <name>Sakai Snapshots</name>
+      <layout>default</layout>
+      <url>http://source.sakaiproject.org/maven2-snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
   </repositories>
-
 </project>
