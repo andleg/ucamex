@@ -40,92 +40,98 @@ import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
-@SlingServlet(paths="/system/ucam/lookup", methods="GET")
+/**
+ * Performs a Lookup on the user details.
+ * If the URL is protected by some proxy webiso (eg shib) then whatever that says will be used for the lookup,
+ * otherwise the userId as logged into Nakamura will be used or if admin, the user Id supplied.
+ * 
+ * The response contains the local record and the remote ldap record. If they dont exist they wont be present.
+ */
+@SlingServlet(paths = { "/system/ucam/lookup", "/system/ucam/c/r/l",
+    "/system/ucam/c/f/l" }, methods = "GET")
 public class GetLookupServlet extends SlingSafeMethodsServlet {
 
-  
   /**
    * 
    */
   private static final long serialVersionUID = -8812325731250311990L;
 
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GetLookupServlet.class);
-
-
-
 
   private static final String USER_DN_TEMPLATE_DEFAULT = "uid={0},ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk";
 
-  @Property(value=USER_DN_TEMPLATE_DEFAULT)
+  @Property(value = USER_DN_TEMPLATE_DEFAULT)
   private static final String USER_DN_TEMPLATE = "userdn-template";
-  
 
   @Reference
   private SimpleLdapConnectionManager simpleLdapConnectionManager;
 
+  @Reference
+  private TrustedProxy trustedProxy;
 
   private String userDNTemplate;
 
-
   @Activate
   public void activate(Map<String, Object> properties) {
-   modify(properties);
+    modify(properties);
   }
-  
+
   @Modified
   public void modify(Map<String, Object> properties) {
-    userDNTemplate = OsgiUtil.toString(properties.get(USER_DN_TEMPLATE), USER_DN_TEMPLATE_DEFAULT);
+    userDNTemplate = OsgiUtil.toString(properties.get(USER_DN_TEMPLATE),
+        USER_DN_TEMPLATE_DEFAULT);
   }
-
-
-
 
   @Override
   protected void doGet(SlingHttpServletRequest request, SlingHttpServletResponse response)
       throws ServletException, IOException {
-    
+
     try {
-      Session session = StorageClientUtils.adaptToSession(request.getResourceResolver().adaptTo(javax.jcr.Session.class));
+      Session session = StorageClientUtils.adaptToSession(request.getResourceResolver()
+          .adaptTo(javax.jcr.Session.class));
       AuthorizableManager authorizableManager = session.getAuthorizableManager();
-      
-      String userId = session.getUserId();
-      if ( User.ADMIN_USER.equals(userId)) {
-        userId = request.getParameter("uid");
+      String userId = trustedProxy.getUserIdFromProxy(request);
+
+      if ( userId == null ) {
+        userId = session.getUserId();
+        if (User.ADMIN_USER.equals(userId)) {
+          userId = request.getParameter("uid");
+        }
       }
-      
-      Authorizable user = authorizableManager.findAuthorizable(userId);
-      if ( user == null ) {
-        response.sendError(404,"User "+userId+" does not exist locally");
+      if ( userId == null || User.ANON_USER.equals(userId)) {
+        response.setStatus(403);
         return;
       }
-      
+
+      Authorizable user = authorizableManager.findAuthorizable(userId);
+
       Map<String, Object> lookupRecord = getLookupRecord(session, userId);
       Map<String, Object> out = Maps.newHashMap();
-      if ( lookupRecord == null ) {
+      if (lookupRecord == null) {
         out.put("remote", false);
       } else {
         lookupRecord.remove("jpegPhoto");
         out.put("remote", lookupRecord);
       }
-      out.put("local", user.getSafeProperties());
+      if ( user != null ) {
+        out.put("local", user.getSafeProperties());
+      }
       response.setStatus(HttpServletResponse.SC_OK);
       response.setContentType("application/json");
       response.setCharacterEncoding("UTF-8");
       JSONWriter jsonWriter = new JSONWriter(response.getWriter());
-      
+
       ExtendedJSONWriter.writeValueMap(jsonWriter, out);
-    } catch ( Exception e) {
-      LOGGER.error(e.getMessage(),e);
-      throw new ServletException(e.getMessage(),e);
+    } catch (Exception e) {
+      LOGGER.error(e.getMessage(), e);
+      throw new ServletException(e.getMessage(), e);
     }
     response.setStatus(200);
-    
+
   }
 
-
-
-  private Map<String, Object> getLookupRecord(Session session, String userId) throws LDAPException, JSONException, StorageClientException, AccessDeniedException {
+  private Map<String, Object> getLookupRecord(Session session, String userId)
+      throws LDAPException, JSONException, StorageClientException, AccessDeniedException {
     LDAPConnection ldapConnection = null;
     try {
       ldapConnection = simpleLdapConnectionManager.getConnection();
@@ -133,34 +139,29 @@ public class GetLookupServlet extends SlingSafeMethodsServlet {
       LDAPEntry ldapEntry = ldapConnection.read(userDN);
       LDAPAttributeSet ldapAttributes = ldapEntry.getAttributeSet();
       Map<String, Object> attributes = Maps.newHashMap();
-      for ( @SuppressWarnings("unchecked")
-      Iterator<LDAPAttribute> i = ldapAttributes.iterator(); i.hasNext(); ) {
+      for (@SuppressWarnings("unchecked")
+      Iterator<LDAPAttribute> i = ldapAttributes.iterator(); i.hasNext();) {
         LDAPAttribute la = i.next();
         String[] values = la.getStringValueArray();
-        if ( values != null ) {
-          if ( values.length > 1 ) {
+        if (values != null) {
+          if (values.length > 1) {
             attributes.put(la.getName(), values);
-          } else if ( values.length == 1) {
+          } else if (values.length == 1) {
             attributes.put(la.getName(), values[0]);
           }
         }
       }
       return attributes;
-    } catch ( Exception e ) {
+    } catch (Exception e) {
       LOGGER.warn(e.getMessage());
-      LOGGER.debug(e.getMessage(),e);
+      LOGGER.debug(e.getMessage(), e);
       return null;
     } finally {
-      if ( ldapConnection != null ) {
+      if (ldapConnection != null) {
         simpleLdapConnectionManager.returnConnection(ldapConnection);
       }
     }
 
   }
-
-
-
-  
-  
 
 }

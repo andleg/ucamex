@@ -117,9 +117,14 @@
       <version>2.1.0</version>
     </dependency>
     <dependency>
-      <groupId>org.sakaiproject.nakamura</groupId>
-      <artifactId>org.sakaiproject.nakamura.profile</artifactId> <!--  may not need this  -->
-      <version>0.11-SNAPSHOT</version>
+      <groupId>org.apache.sling</groupId>
+      <artifactId>org.apache.sling.servlets.post</artifactId> 
+      <version>2.1.0</version>
+    </dependency>
+    <dependency>
+       <groupId>javax.jcr</groupId>
+       <artifactId>jcr</artifactId>
+       <version>2.0</version>
     </dependency>
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
@@ -127,14 +132,19 @@
       <version>0.11-SNAPSHOT</version>
     </dependency>
     <dependency>
-      <groupId>com.novell.ldap</groupId>
-      <artifactId>jldap</artifactId>
-      <version>4.3</version>
+      <groupId>org.sakaiproject.nakamura</groupId>
+      <artifactId>org.sakaiproject.nakamura.utils</artifactId>
+      <version>0.11-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.sakaiproject.nakamura</groupId>
-      <artifactId>org.sakaiproject.nakamura.templates</artifactId>
-      <version>0.11-SNAPSHOT</version>
+      <artifactId>org.sakaiproject.nakamura.core</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.novell.ldap</groupId>
+      <artifactId>jldap</artifactId>
+      <version>4.3</version>
     </dependency>
   
      <dependency>
@@ -170,11 +180,6 @@
     </dependency>
     
     
-    <dependency>
-     <groupId>org.apache.sling</groupId>
-     <artifactId>org.apache.sling.api</artifactId>
-     <version>2.1.0</version>
-    </dependency>
     <dependency>
       <groupId>org.apache.sling</groupId>
       <artifactId>org.apache.sling.commons.osgi</artifactId>
